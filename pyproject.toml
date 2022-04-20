@@ -8,6 +8,7 @@ authors = ["AndreasPB <andreas.p.brodersen@gmail.com>"]
 python = "^3.10"
 pandas = "^1.4.2"
 fastapi = "^0.75.2"
+uvicorn = {extras = ["standard"], version = "^0.17.6"}
 
 [tool.poetry.dev-dependencies]
 
