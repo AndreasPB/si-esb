@@ -1,6 +1,5 @@
 import json
 import yaml
-import pathlib
 import pandas as pd
 from uuid import UUID
 from fastapi import FastAPI, HTTPException
@@ -76,23 +75,27 @@ async def _(id, last_message_id, limit: int, token):
         return json.dumps(msg)
     raise HTTPException(status_code=204, detail="No messages")
 
+
 @app.post("/create-message/", status_code=201)
-async def _(topic: str, token: str, message: Message, format: str = "JSON"):
+async def _(topic: str, token: str, message: Message, file_format: str = "JSON"):
     if token not in users:
         raise HTTPException(status_code=403, detail="Invalid token")
 
     message_dataframe = pd.DataFrame(data=message, index=None)
-    print(message_dataframe)
-    match format:
+    # make message data the first row of the dataframe and not indexes
+    new_header_column = message_dataframe.iloc[0]
+    message_dataframe = message_dataframe[1:]
+    message_dataframe.columns = new_header_column
+    match file_format:
         case 'JSON':
-            message_dataframe.to_json("message.json", index=False, orient="split")
+            message_dataframe.to_json("message.json", orient="records", lines=True)
         case 'YAML':
             with open("message.yaml", "w") as f:
-                f.write(yaml.dump(message))
+                f.write(yaml.dump(message.dict()))
         case 'XML':
             message_dataframe.to_xml("message.xml", index=False)
         case 'TSV':
-            message_dataframe.to_csv("message.tsv", sep='\t')
+            message_dataframe.to_csv("message.tsv", sep='\t', index=False)
         case _:
             raise HTTPException(status_code=400, detail="Did not recognize format")
 
