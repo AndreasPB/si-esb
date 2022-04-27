@@ -1,6 +1,7 @@
 import json
 from uuid import UUID
 from fastapi import FastAPI, HTTPException
+from cache import r
 
 
 app = FastAPI()
@@ -29,9 +30,19 @@ messages = {
 }
 
 
+@app.on_event("startup")
+async def _():
+    r.set("foo", "bar")
+    
+
 @app.get("/")
 async def index():
     return "(◡ ‿ ◡ ✿)"
+
+
+@app.get("/redis-test")
+async def _():
+    return r.get("foo")
 
 
 @app.get("/provider/{id}/from/{last_message_id}/limit/{limit}/token/{token}")
