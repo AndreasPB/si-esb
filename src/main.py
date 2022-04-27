@@ -1,7 +1,11 @@
 import json
+import yaml
+import pathlib
+import pandas as pd
 from uuid import UUID
 from fastapi import FastAPI, HTTPException
 from cache import r
+from models.message import Message
 
 
 app = FastAPI()
@@ -50,7 +54,7 @@ async def _(id, last_message_id, limit: int, token):
     if not limit:
         raise HTTPException(status_code=400, detail="Limit is 0")
     if token not in users:
-        raise HTTPException(status_code=400, detail="Invalid token")
+        raise HTTPException(status_code=403, detail="Invalid token")
     try:
         messages[id]
     except:
@@ -71,4 +75,25 @@ async def _(id, last_message_id, limit: int, token):
     if msg := messages[id][offset:limit]:
         return json.dumps(msg)
     raise HTTPException(status_code=204, detail="No messages")
+
+@app.post("/create-message/", status_code=201)
+async def _(topic: str, token: str, message: Message, format: str = "JSON"):
+    if token not in users:
+        raise HTTPException(status_code=403, detail="Invalid token")
+
+    message_dataframe = pd.DataFrame(data=message, index=None)
+    print(message_dataframe)
+    match format:
+        case 'JSON':
+            message_dataframe.to_json("message.json", index=False, orient="split")
+        case 'YAML':
+            with open("message.yaml", "w") as f:
+                f.write(yaml.dump(message))
+        case 'XML':
+            message_dataframe.to_xml("message.xml", index=False)
+        case 'TSV':
+            message_dataframe.to_csv("message.tsv", sep='\t')
+        case _:
+            raise HTTPException(status_code=400, detail="Did not recognize format")
+
 
