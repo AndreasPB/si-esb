@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 )
 
 // Steps:
@@ -45,7 +48,13 @@ var messages = map[string][]Message{
 	},
 }
 
+var ctx = context.Background()
+
 func main() {
+	redis := redis.NewClient(&redis.Options{
+		Addr: "localhost:6379",
+		DB:   0,
+	})
 	router := gin.Default()
 	router.POST("/create-message", messageHandler)
 	router.GET("/provider/:id/limit/:limit/token/:token", esb)
