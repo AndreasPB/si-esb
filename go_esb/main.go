@@ -49,7 +49,7 @@ func main() {
 	router := gin.Default()
 	router.POST("/create-message", messageHandler)
 	router.GET("/provider/:id/limit/:limit/token/:token", esb)
-	router.Run(":9999")
+	router.Run("0.0.0.0:9999")
 }
 
 func messageHandler(c *gin.Context) {
