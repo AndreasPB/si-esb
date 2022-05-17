@@ -1,6 +1,7 @@
 services:
 
   redis:
+    container_name: redis
     image: redis:latest
     ports:
       - 6379:6379
@@ -8,13 +9,13 @@ services:
       - ./config/redis.conf:/redis.conf
     command: [ "redis-server", "/redis.conf" ]
 
-  go_esb:
-    build: ./go_esb
-    container_name: go_esb
+  esb:
+    build: .
+    container_name: esb
     restart: always
     ports:
       - 9999:9999
     volumes:
-      - ./go_esb:/app
+      - .:/app
     depends_on:
       - redis
