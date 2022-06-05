@@ -123,18 +123,25 @@ func (env *Env) readMessage(c *gin.Context) {
 		if v.Token == consumerToken {
 			// transform message based on consumer
 			redisMessages := env.redis.LRange(ctx, topic, 0, int64(msgLimit)-1)
-			messages := []string{}
+			messages := []Message{}
 			for _, message := range redisMessages.Val() {
-				intermediateMessage := Message{}
-				err := json.Unmarshal([]byte(message), &intermediateMessage)
+				outputMessage := Message{}
+				err := json.Unmarshal([]byte(message), &outputMessage)
 				if err != nil {
 					log.Fatal(err)
 				}
 
-				transformedMessage, _ := transformMessage(c, intermediateMessage, format)
-				messages = append(messages, string(transformedMessage))
+				messages = append(messages, outputMessage)
 			}
-			c.JSON(http.StatusOK, messages)
+
+			switch format {
+			case "XML":
+				c.XML(http.StatusOK, messages)
+			case "JSON":
+				c.JSON(http.StatusOK, messages)
+			case "YML", "YAML":
+				c.YAML(http.StatusOK, messages)
+			}
 			return
 		}
 	}
