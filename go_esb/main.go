@@ -85,13 +85,22 @@ func (env *Env) createMessage(c *gin.Context) {
 	for _, user := range users {
 		if token == user.Token {
 			commonFormat, err := json.Marshal(message)
+
+			if len(message.Content) == 0 {
+				c.JSON(http.StatusBadRequest, gin.H{"info": "Wrongly formatted message"})
+				return
+			}
 			if err != nil {
 				log.Fatal(err)
+				c.JSON(http.StatusBadRequest, gin.H{"info": "Wrongly formatted message"})
+				return
 			}
+
 			redisErr := env.redis.RPush(ctx, topic, commonFormat).Err()
 			if redisErr != nil {
 				log.Fatal(redisErr)
 			}
+			c.JSON(http.StatusOK, gin.H{"info": "Message was saved", "message": message})
 			return
 		}
 	}
