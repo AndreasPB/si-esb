@@ -2,6 +2,8 @@ services:
 
   redis:
     image: redis:latest
+    networks:
+      - extern
     ports:
       - 6379:6379
     volumes:
@@ -12,9 +14,15 @@ services:
     build: ./go_esb
     container_name: go_esb
     restart: always
+    networks:
+      - extern
     ports:
       - 9999:9999
     volumes:
       - ./go_esb:/app
     depends_on:
       - redis
+
+networks:
+  extern:
+    external: true
