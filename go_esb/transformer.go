@@ -1,21 +1,22 @@
 package main
 
 import (
-	"net/http"
+	"encoding/json"
+	"encoding/xml"
 
-	"github.com/gin-gonic/gin"
+	"gopkg.in/yaml.v2"
 )
 
-func JSONTransformer(c *gin.Context, message Message) {
-	c.JSON(http.StatusOK, message)
+func JSONTransformer(message Message) ([]byte, error) {
+	return json.Marshal(message)
 }
 
-func XMLTransformer(c *gin.Context, message Message) {
-	c.XML(http.StatusOK, message)
+func XMLTransformer(message Message) ([]byte, error) {
+	return xml.Marshal(message)
 }
 
-func YMLTransformer(c *gin.Context, message Message) {
-	c.YAML(http.StatusOK, message)
+func YMLTransformer(message Message) ([]byte, error) {
+	return yaml.Marshal(message)
 }
 
 func TSVTransformer() {
