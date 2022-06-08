@@ -41,7 +41,7 @@ func main() {
 
 	router := gin.Default()
 	router.POST("/create-message", env.createMessage)
-	router.GET("/topic/:topic/from/:from/limit/:limit/token/:token/format/:format", env.readMessage)
+	router.GET("/topic/:topic/skip/:skip/limit/:limit/format/:format", env.readMessage)
 	router.Run("0.0.0.0:9999")
 }
 
@@ -73,14 +73,14 @@ func (env *Env) createMessage(c *gin.Context) {
 func (env *Env) readMessage(c *gin.Context) {
 	topic := c.Param("topic")
 	format := c.Param("format")
-	fromOffset, err := strconv.Atoi(c.Param("from"))
+	skip, err := strconv.Atoi(c.Param("skip"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"info": "Offset must be an integer"})
+		c.JSON(http.StatusBadRequest, gin.H{"info": "skip must be an integer"})
 		return
 	}
 	msgLimit, err := strconv.Atoi(c.Param("limit"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"info": "Limit be must an integer"})
+		c.JSON(http.StatusBadRequest, gin.H{"info": "limit be must an integer"})
 		return
 	}
 
@@ -93,15 +93,15 @@ func (env *Env) readMessage(c *gin.Context) {
 		return
 	}
 
-	if fromOffset < 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"info": "from offset must be 0 or above"})
+	if skip < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"info": "skip offset must be 0 or above"})
 	}
 	if msgLimit <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"info": "Limit is 0 or less"})
+		c.JSON(http.StatusBadRequest, gin.H{"info": "limit must be 1 or above"})
 		return
 	}
 
-	redisMessages := env.redis.LRange(ctx, topic, int64(fromOffset), int64(msgLimit)-1)
+	redisMessages := env.redis.LRange(ctx, topic, int64(skip), int64(msgLimit)-1)
 	messages := []Message{}
 	for _, message := range redisMessages.Val() {
 		outputMessage := Message{}
