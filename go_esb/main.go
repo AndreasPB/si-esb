@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -33,6 +34,7 @@ var acceptedFormats = map[string]bool{
 }
 
 var ctx = context.Background()
+var JWT_SECRET = os.Getenv("JWT_SECRET")
 
 func main() {
 	env := &Env{
@@ -79,10 +81,9 @@ func (env *Env) handleMessageExpiration(c *gin.Context) {
 
 func verifyAuth(c *gin.Context) (bool, error) {
 	auth := c.GetHeader("auth")
-	secret := "6hest9"
 
 	token, err := jwt.Parse(auth, func(token *jwt.Token) (interface{}, error) {
-		return []byte(secret), nil
+		return []byte(JWT_SECRET), nil
 	})
 
 	if err != nil {
