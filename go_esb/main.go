@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
+	"github.com/golang-jwt/jwt"
 )
 
 type Message struct {
@@ -32,6 +34,7 @@ var acceptedFormats = map[string]bool{
 }
 
 var ctx = context.Background()
+var JWT_SECRET = os.Getenv("JWT_SECRET")
 
 func main() {
 	env := &Env{
@@ -76,7 +79,30 @@ func (env *Env) handleMessageExpiration(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"info": "Done cleaning up"})
 }
 
+func verifyAuth(c *gin.Context) (bool, error) {
+	auth := c.GetHeader("auth")
+
+	token, err := jwt.Parse(auth, func(token *jwt.Token) (interface{}, error) {
+		return []byte(JWT_SECRET), nil
+	})
+
+	if err != nil {
+		fmt.Println(err)
+		return false, err
+	}
+
+	return token.Valid, nil
+}
+
 func (env *Env) createMessage(c *gin.Context) {
+	_, err := verifyAuth(c)
+
+	if err != nil {
+		fmt.Println(err)
+		c.JSON(http.StatusUnauthorized, gin.H{"info": "Unable to verify token", "error": err})
+		return
+	}
+
 	topic := c.Query("topic")
 	message := Message{}
 	c.Bind(&message)
@@ -86,12 +112,13 @@ func (env *Env) createMessage(c *gin.Context) {
 
 	commonFormat, err := json.Marshal(message)
 
-	if len(message.Content) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"info": "Wrongly formatted message"})
+	if err != nil {
+		fmt.Println(err)
+		c.JSON(http.StatusBadRequest, gin.H{"info": "Could not marshal message", "error": err})
 		return
 	}
-	if err != nil {
-		log.Fatal(err)
+
+	if len(message.Content) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"info": "Wrongly formatted message"})
 		return
 	}
@@ -105,6 +132,14 @@ func (env *Env) createMessage(c *gin.Context) {
 }
 
 func (env *Env) readMessage(c *gin.Context) {
+	_, err := verifyAuth(c)
+
+	if err != nil {
+		fmt.Println(err)
+		c.JSON(http.StatusUnauthorized, gin.H{"info": "Unable to verify token", "error": err})
+		return
+	}
+
 	topic := c.Param("topic")
 	format := c.Param("format")
 	skip, err := strconv.Atoi(c.Param("skip"))
