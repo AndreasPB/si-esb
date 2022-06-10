@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
@@ -16,6 +17,7 @@ import (
 type Message struct {
 	Id      string `form:"id" json:"id" xml:"id" yaml:"id" redis:"id"`
 	Content string `form:"content" json:"content" xml:"content" yaml:"content" redis:"content"`
+	Exp     int64  `form:"exp" json:"exp" xml:"exp" yaml:"exp" redis:"exp"`
 }
 
 type Env struct {
@@ -42,13 +44,45 @@ func main() {
 	router := gin.Default()
 	router.POST("/create-message", env.createMessage)
 	router.GET("/topic/:topic/skip/:skip/limit/:limit/format/:format", env.readMessage)
+	router.GET("/cleanup", env.handleMessageExpiration)
 	router.Run("0.0.0.0:9999")
+}
+
+func (env *Env) handleMessageExpiration(c *gin.Context) {
+	message := Message{}
+
+	for _, topic := range env.redis.Keys(ctx, "*").Val() {
+		fmt.Println("Cleaning:", topic)
+		for {
+			firstIndex := env.redis.LIndex(ctx, topic, 0)
+
+			err := json.Unmarshal([]byte(firstIndex.Val()), &message)
+			if err != nil {
+				fmt.Println("No messages")
+				break
+			}
+
+			if message.Exp < time.Now().Unix() {
+				fmt.Println("Expired", message.Exp)
+				poppedMessage := env.redis.LPop(ctx, topic)
+				fmt.Println("Popped message:", poppedMessage)
+			} else {
+				fmt.Println("No expired messages")
+				break
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"info": "Done cleaning up"})
 }
 
 func (env *Env) createMessage(c *gin.Context) {
 	topic := c.Query("topic")
 	message := Message{}
 	c.Bind(&message)
+
+	expirationTime := time.Hour * 24
+	message.Exp = time.Now().Add(expirationTime).Unix()
 
 	commonFormat, err := json.Marshal(message)
 
