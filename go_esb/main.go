@@ -49,7 +49,6 @@ func main() {
 	router.Run("0.0.0.0:9999")
 }
 
-<<<<<<< HEAD
 func (env *Env) handleMessageExpiration(c *gin.Context) {
 	message := Message{}
 
@@ -77,7 +76,8 @@ func (env *Env) handleMessageExpiration(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"info": "Done cleaning up"})
 }
-func verifyAuth(c *gin.Context) {
+
+func verifyAuth(c *gin.Context) (bool, error) {
 	auth := c.GetHeader("auth")
 	secret := "6hest9"
 
@@ -86,64 +86,59 @@ func verifyAuth(c *gin.Context) {
 	})
 
 	if err != nil {
-		log.Println(err)
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err})
-		return
+		fmt.Println(err)
+		return false, err
 	}
+
+	return token.Valid, nil
 }
 
 func (env *Env) createMessage(c *gin.Context) {
+	_, err := verifyAuth(c)
+
+	if err != nil {
+		fmt.Println(err)
+		c.JSON(http.StatusUnauthorized, gin.H{"info": "Unable to verify token", "error": err})
+		return
+	}
+
 	topic := c.Query("topic")
-	auth := c.GetHeader("auth")
 	message := Message{}
 	c.Bind(&message)
 
-<<<<<<< HEAD
 	expirationTime := time.Hour * 24
 	message.Exp = time.Now().Add(expirationTime).Unix()
 
 	commonFormat, err := json.Marshal(message)
-=======
-	secret := "6hest9"
-
-	token, err := jwt.Parse(auth, func(token *jwt.Token) (interface{}, error) {
-		return []byte(secret), nil
-	})
->>>>>>> 5f184b1 (Add JWT verification for create_message)
 
 	if err != nil {
-		log.Println(err)
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err})
+		fmt.Println(err)
+		c.JSON(http.StatusBadRequest, gin.H{"info": "Could not marshal message", "error": err})
 		return
 	}
 
-	if token.Valid {
-		commonFormat, err := json.Marshal(message)
-
-		if err != nil {
-			fmt.Println(err)
-			c.JSON(http.StatusBadRequest, gin.H{"error": err})
-			return
-		}
-
-		if len(message.Content) == 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"info": "Wrongly formatted message"})
-			return
-		}
-
-		redisErr := env.redis.RPush(ctx, topic, commonFormat).Err()
-		if redisErr != nil {
-			log.Fatal(redisErr)
-		}
-		c.JSON(http.StatusOK, gin.H{"info": "Message was saved", "message": message})
+	if len(message.Content) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"info": "Wrongly formatted message"})
 		return
-	} else {
-		fmt.Println("Couldn't handle this token:", err)
-		panic("Some JWT thing happened that we did not handle")
 	}
+
+	redisErr := env.redis.RPush(ctx, topic, commonFormat).Err()
+	if redisErr != nil {
+		log.Fatal(redisErr)
+	}
+	c.JSON(http.StatusOK, gin.H{"info": "Message was saved", "message": message})
+	return
 }
 
 func (env *Env) readMessage(c *gin.Context) {
+	_, err := verifyAuth(c)
+
+	if err != nil {
+		fmt.Println(err)
+		c.JSON(http.StatusUnauthorized, gin.H{"info": "Unable to verify token", "error": err})
+		return
+	}
+
 	topic := c.Param("topic")
 	format := c.Param("format")
 	skip, err := strconv.Atoi(c.Param("skip"))
